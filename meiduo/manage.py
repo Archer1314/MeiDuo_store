@@ -3,7 +3,7 @@ import os
 import sys
 
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "meiduo.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "meiduo.settings.dev")
     try:
         from django.core.management import execute_from_command_line
     except ImportError:
@@ -20,3 +20,34 @@ if __name__ == "__main__":
             )
         raise
     execute_from_command_line(sys.argv)
+
+
+# 2019.7.3 已安装ok
+# amqp==2.4.2
+# billiard==3.6.0.0
+# celery==4.3.0
+# certifi==2019.3.9
+# chardet==3.0.4
+# Django==1.11.11
+# django-crontab==0.7.1
+# django-haystack==2.8.1
+# django-redis==4.10.0
+# elasticsearch==2.4.1
+# idna==2.8
+# itsdangerous==1.1.0
+# Jinja2==2.10.1
+# kombu==4.5.0
+# MarkupSafe==1.1.1
+# mutagen==1.42.0
+# pika==1.0.1
+# Pillow==6.0.0
+# pycryptodomex==3.7.2
+# PyMySQL==0.9.3
+# python-alipay-sdk==1.10.0
+# pytz==2019.1
+# QQLoginTool==0.3.0
+# redis==3.2.1
+# requests==2.21.0
+# urllib3==1.24.2
+# uWSGI==2.0.18
+# vine==1.3.0
