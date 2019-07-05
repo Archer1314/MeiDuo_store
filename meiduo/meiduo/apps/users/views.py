@@ -5,7 +5,7 @@ from django import http
 # Create your views here.
 import re
 from .models import User
-
+from meiduo.utils.response_code import RETCODE
 from django.views.generic.base import View
 
 
@@ -15,7 +15,6 @@ class Users(View):
 
     def post(self, request):
         query_dict = request.POST
-        print(query_dict)
         username = query_dict.get('username', '')
         password = query_dict.get('password', '')
         password2 = query_dict.get('password2', '')
@@ -52,8 +51,14 @@ class Users(View):
 class UsernamecodeView(View):
     def get(self, request, username):
         username = username
-        count = User.objects.filter(username=username)
-        return http.JsonResponse({'count': count})
+        count = User.objects.filter(username=username).count()
+        return http.JsonResponse({'code': RETCODE.OK, 'err_msg': 'OK', 'count': count})
 
+
+class telephonecodeView(View):
+    def get(self, request, mobile):
+        telephone = mobile
+        count = User.objects.filter(telephone=telephone).count()
+        return http.JsonResponse({'code': RETCODE.OK, 'err_msg': 'OK', 'count': count})
 
 

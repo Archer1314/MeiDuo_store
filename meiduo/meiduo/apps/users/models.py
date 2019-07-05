@@ -4,7 +4,7 @@ from django.db import models
 
 
 class User(AbstractUser):
-    # AbstractUser中没有该手机列
+    # AbstractUser中没有该手机列,
     telephone = models.CharField(max_length=30, unique=True, verbose_name='手机号')
 
     class Meta:
