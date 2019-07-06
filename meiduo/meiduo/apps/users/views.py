@@ -2,6 +2,7 @@ from django.contrib.auth import login
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django import http
+from django_redis import get_redis_connection
 # Create your views here.
 import re
 from .models import User
@@ -40,7 +41,18 @@ class Users(View):
             return http.HttpResponseForbidden('非法注册,密码两次输入不一致')
         if not re.match(r'^1[345789]\d{9}$', telephone):
             return http.HttpResponseForbidden('非法注册,手机号不符合规范')
-        # TODO:if sms_code短信校验码验证还未写.
+
+        # 后边补全手机验证码校验
+        redis_conn = get_redis_connection('verifications')
+        redis_sms_code = redis_conn.get('sms_code_%s' % telephone)
+        # 保证每个手机验证码只能使用一次
+        # 且前端无防护此项
+        redis_conn.delete(redis_sms_code)
+        if redis_sms_code is None:
+            return http.HttpResponseForbidden('验证码已过期')     # 正常逻辑是json局部刷新,但此为form请求,暂时用
+        if redis_sms_code.decode() != sms_code:
+            return http.HttpResponseForbidden('手机验证码不正确')   # 前端给的是form表单请求,不能返回json
+
 
         user = User.objects.create_user(username=username, password=password, telephone= telephone)
         login(request, user)
