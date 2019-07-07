@@ -20,4 +20,5 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^', include('users.urls', namespace='users')),
     url(r'^', include('verifications.urls', namespace='verifications')),  # 为何没有路由屏蔽:a
+    url(r'^', include('contents.urls', namespace='contents')),
 ]

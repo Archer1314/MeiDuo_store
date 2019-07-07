@@ -228,3 +228,11 @@ LOGGING = {
 }
 
 AUTH_USER_MODEL = 'users.User'
+
+# 該參數設定session的保存時間，若要修改狀態保存時間，就修改此處
+SESSION_COOKIE_AGE = 60 * 60 * 48
+
+# 修改认证类后，想要生效， 必须在配置上4
+# 加载顺序：global.setting  -->setting.dev  后写的会覆盖之前的配置设置
+AUTHENTICATION_BACKENDS = ['users.utils.ManyUser']
+
