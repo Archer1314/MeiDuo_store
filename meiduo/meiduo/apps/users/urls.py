@@ -9,7 +9,8 @@ urlpatterns = [
     url(r'^mobiles/(?P<mobile>[0-9A-Za-z]{8,20})/count/$', views.telephonecodeView.as_view()),
     # 用户登陆页面请求和校验登陆信息
     url(r'^login/$', views.IndexContents.as_view(), name='login'),
-    # 用户
+    # 用户退出
     url(r'^logout/$', views.LogoutUser.as_view()),
+    # 用户中心
     url(r'^info/$', views.UserCenterInfo.as_view(), name='center'),
 ]

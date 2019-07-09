@@ -1,7 +1,5 @@
 from django.contrib.auth import login
 from django.contrib.auth import logout
-from django.utils.functional import SimpleLazyObject
-from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django import http
 from django.urls import reverse
@@ -58,7 +56,7 @@ class Users(View):
         if redis_sms_code.decode() != sms_code:
             return http.HttpResponseForbidden('手机验证码不正确')   # 前端给的是form表单请求,不能返回json
 
-        user = User.objects.create_user(username=username, password=password, telephone= telephone)
+        user = User.objects.create_user(username=username, password=password, telephone=telephone)
         login(request, user)
 
         # 设置cookie，是竹叶的用户信息更新（vue.js会接受，然后渲染页面）
@@ -88,7 +86,7 @@ class IndexContents(View):
 
     def post(self, request):
         #  目的：获取用户的登陆信息， 分析：前端是用form表单发送，post请求，需要返回的是http response
-        # input 标签表单的name属性就是这个标签的key， value属性是5
+        # input 标签表单的name属性就是这个标签的key， value属性是值
         username = request.POST.get('username')
         password = request.POST.get('password')
         remembered = request.POST.get('remembered')
@@ -97,24 +95,24 @@ class IndexContents(View):
             return http.HttpResponseForbidden('账号或密码不全')
 
         # 校验，如果不正确，再次返回登陆页面，并提示错误信息
-        # filter不性，得到的是queryset，无check_password方法
-        # if not user:
+        # filter不行，得到的是queryset，不能进行check_password方法
+        # user = User.objects.filter(username=username)
         # if user.check_password(password):
         #     return render(request, 'login.html', {'account_errmsg': '用户名或密码错误'})
         # return render(request, 'index.html')
 
         # try:
         #     user = User.objects.get(username=username)
-        # except Exception as DoesnotExist:
+        # except User.DoesnotExist:
         #     return render(request, 'login.html', {'account_errmsg': '用户名或密码错误'})
         #
         # if not user.check_password(password):
         #     return render(request, 'login.html', {'account_errmsg': '用户名或密码错误'})
 
-        # 比较繁琐，ddjango有做好该认证工作
+        # 比较繁琐，django有做好该认证工作
         # user = authenticate(username=username, password=password)
-        # 但是只能满足账号的useername，手机号bu满足
-        # 改善2  看源代码，将校验的内容根据输入动态的从usrname改为mobile
+        # 但是只能满足账号的username，手机号bu满足
+        # 改善2  看源代码，将校验的内容根据输入动态的从username改为mobile
         user = ManyUser.authenticate(request, username=username, password=password)
 
         if not user:
@@ -128,15 +126,13 @@ class IndexContents(View):
 
         # 如果用户选择不记录，则是需要关闭浏览器后就没有session信息
         if remembered != 'on':
-            print(2)
             request.session.set_expiry(0)
-        if request.GET.get('next'):
-            pass
-        # 设置cookie，是竹叶的用户信息更新（vue.js会接受，然后渲染页面）
+        # 设置cookie，是主页的用户信息更新（vue.js会接受，然后渲染页面）
         url = reverse('contents:index')
         if request.GET.get('next') == 'info':
             url = reverse('users:center')
         response = redirect(url)
+        # 设置cooike带回username （不管以验证是么信息登录的都是显示用户名）
         response.set_cookie('username', user.username)
         return response
 
