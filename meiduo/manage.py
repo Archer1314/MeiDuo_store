@@ -25,28 +25,28 @@ if __name__ == "__main__":
 # 2019.7.3 已安装ok
 # amqp==2.4.2
 # billiard==3.6.0.0
-# celery==4.3.0
+# celery==4.3.0                 ok
 # certifi==2019.3.9
 # chardet==3.0.4
-# Django==1.11.11
+# Django==1.11.11               ok
 # django-crontab==0.7.1
 # django-haystack==2.8.1
-# django-redis==4.10.0
+# django-redis==4.10.0          ok
 # elasticsearch==2.4.1
 # idna==2.8
-# itsdangerous==1.1.0
-# Jinja2==2.10.1
+# itsdangerous==1.1.0           ok
+# Jinja2==2.10.1                ok
 # kombu==4.5.0
 # MarkupSafe==1.1.1
 # mutagen==1.42.0
 # pika==1.0.1
-# Pillow==6.0.0
+# Pillow==6.0.0                 ok
 # pycryptodomex==3.7.2
-# PyMySQL==0.9.3
+# PyMySQL==0.9.3                ok
 # python-alipay-sdk==1.10.0
-# pytz==2019.1
-# QQLoginTool==0.3.0
-# redis==3.2.1
+# pytz==2019.1                  ok
+# QQLoginTool==0.3.0            ok
+# redis==3.2.1                  ok
 # requests==2.21.0
 # urllib3==1.24.2
 # uWSGI==2.0.18

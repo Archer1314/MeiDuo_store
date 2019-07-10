@@ -56,7 +56,7 @@ class SmsCode(View):
         sms_code = '%06d' % randint(0, 999999)
         # 中断显示验证码，性能
         logging.info(sms_code)
-
+        print(sms_code)
         # 保存手机验证码的和手机号
         # 保存手机发送验证码的状态信息
         pl = redis_conn.pipeline()

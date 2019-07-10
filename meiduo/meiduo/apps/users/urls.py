@@ -2,15 +2,18 @@ from django.conf.urls import url, include
 from users import views
 urlpatterns = [
     # 注册网页路由
-    url(r'^register/$', views.Users.as_view()),
+    url(r'^register/$', views.RegisterView.as_view()),
     # 用户名（json）是否重复的校验
-    url(r'^usernames/(?P<username>[a-zA-Z0-9_-]{5,20})/count/$', views.UsernamecodeView.as_view()),
+    url(r'^usernames/(?P<username>[a-zA-Z0-9_-]{5,20})/count/$', views.UsernamecountView.as_view()),
     # 手机号码（json）是否重复的校验
-    url(r'^mobiles/(?P<mobile>[0-9A-Za-z]{8,20})/count/$', views.telephonecodeView.as_view()),
+    url(r'^mobiles/(?P<mobile>[0-9A-Za-z]{8,20})/count/$', views.telephonecountView.as_view()),
     # 用户登陆页面请求和校验登陆信息
-    url(r'^login/$', views.IndexContents.as_view(), name='login'),
+    url(r'^login/$', views.LoginView.as_view(), name='login'),
     # 用户退出
-    url(r'^logout/$', views.LogoutUser.as_view()),
+    url(r'^logout/$', views.LogoutView.as_view()),
     # 用户中心
-    url(r'^info/$', views.UserCenterInfo.as_view(), name='center'),
+    url(r'^info/$', views.UserCenterInfoView.as_view(), name='center'),
+    # 用户中心中用户绑定邮箱
+    # this.host + '/emails/'
+    url(r'^emails/$', views.UserCenterEmailView.as_view(), name='email'),
 ]

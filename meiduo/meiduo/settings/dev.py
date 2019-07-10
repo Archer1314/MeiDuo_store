@@ -234,7 +234,30 @@ AUTH_USER_MODEL = 'users.User'
 # 該參數設定session的保存時間，若要修改狀態保存時間，就修改此處
 SESSION_COOKIE_AGE = 60 * 60 * 48
 
-# 修改认证类后，想要生效， 必须在配置上4
+# 修改认证类后，想要生效， 必须在配置上注册
 # 加载顺序：global.setting  -->setting.dev  后写的会覆盖之前的配置设置
 AUTHENTICATION_BACKENDS = ['users.utils.ManyUser']
 
+
+# global_setting 中的邮箱配置
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Host for sending email.
+# EMAIL_HOST = 'localhost'
+# Port for sending email.
+# EMAIL_PORT = 25
+# Whether to send SMTP 'Date' header in the local time zone or in UTC.
+# EMAIL_USE_LOCALTIME = False
+# EMAIL_HOST_USER = ''
+# EMAIL_HOST_PASSWORD = ''
+# EMAIL_USE_TLS = False
+# EMAIL_USE_SSL = False
+# EMAIL_SSL_CERTFILE = None
+# EMAIL_SSL_KEYFILE = None
+# EMAIL_TIMEOUT = None
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # 指定邮件后端
+EMAIL_HOST = 'smtp.163.com'  # 发邮件主机
+EMAIL_PORT = 25  # 发邮件端口
+EMAIL_HOST_USER = 'itcast99@163.com'  # 授权的邮箱
+EMAIL_HOST_PASSWORD = 'python99'  # 邮箱授权时获得的密码，非注册登录密码
+EMAIL_FROM = '美多商城<itcast99@163.com>'  # 发件人抬头

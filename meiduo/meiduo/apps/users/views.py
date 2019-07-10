@@ -1,5 +1,7 @@
+import json
 from django.contrib.auth import login
 from django.contrib.auth import logout
+
 from django.shortcuts import render, redirect
 from django import http
 from django.urls import reverse
@@ -10,14 +12,19 @@ from .models import User
 from meiduo.utils.response_code import RETCODE
 from django.views.generic.base import View
 from django.contrib.auth import authenticate    # 已经被ManyUser继承
-from .utils import ManyUser
+from .utils import ManyUser, generate_verify_url
+from django.conf import settings
+from meiduo.utils.views import LoginRequiredView
+from celery_tasks.email.tasks import send_verify_email
 
-
-class Users(View):
+class RegisterView(View):
     def get(self, request):
+        '''提供注册界面'''
         return render(request, 'register.html')
 
     def post(self, request):
+        """注册逻辑"""
+        # 接收请求体数据
         query_dict = request.POST
         username = query_dict.get('username', '')
         password = query_dict.get('password', '')
@@ -40,7 +47,7 @@ class Users(View):
             return http.HttpResponseForbidden('非法注册,用户名不符合规范')
         if not re.match(r'^[[0-9A-Za-z]{8,20}$', password):
             return http.HttpResponseForbidden('非法注册,密码不符合规范')
-        if not password == password2:
+        if  password != password2:
             return http.HttpResponseForbidden('非法注册,密码两次输入不一致')
         if not re.match(r'^1[345789]\d{9}$', telephone):
             return http.HttpResponseForbidden('非法注册,手机号不符合规范')
@@ -59,37 +66,40 @@ class Users(View):
         user = User.objects.create_user(username=username, password=password, telephone=telephone)
         login(request, user)
 
-        # 设置cookie，是竹叶的用户信息更新（vue.js会接受，然后渲染页面）
+        # 设置cookie，主页的用户信息更新（vue.js会接受，然后渲染页面）
         # 注册成功后，重新定向到首页
         response = redirect(reverse('contents:index'))
-        response.set_cookie('username', username)
+        response.set_cookie('username', username, max_age=settings.SESSION_COOKIE_AGE)
         return response
 
 
-class UsernamecodeView(View):
+class UsernamecountView(View):
+    """判断用户名是否重复注册"""
     def get(self, request, username):
         username = username
         count = User.objects.filter(username=username).count()
         return http.JsonResponse({'code': RETCODE.OK, 'err_msg': 'OK', 'count': count})
 
 
-class telephonecodeView(View):
+class telephonecountView(View):
+    """判断手机是否重复注册"""
     def get(self, request, mobile):
         telephone = mobile
         count = User.objects.filter(telephone=telephone).count()
         return http.JsonResponse({'code': RETCODE.OK, 'err_msg': 'OK', 'count': count})
 
 
-class IndexContents(View):
+class LoginView(View):
     def get(self, request):
         return render(request, 'login.html')
 
     def post(self, request):
         #  目的：获取用户的登陆信息， 分析：前端是用form表单发送，post请求，需要返回的是http response
         # input 标签表单的name属性就是这个标签的key， value属性是值
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        remembered = request.POST.get('remembered')
+        query_dict = request.POST
+        username = query_dict.get('username')
+        password = query_dict.get('password')
+        remembered = query_dict.get('remembered')
 
         if not all([username, password]):
             return http.HttpResponseForbidden('账号或密码不全')
@@ -128,17 +138,14 @@ class IndexContents(View):
         if remembered != 'on':
             request.session.set_expiry(0)
         # 设置cookie，是主页的用户信息更新（vue.js会接受，然后渲染页面）
-        url = reverse('contents:index')
-        if request.GET.get('next') == 'info':
-            url = reverse('users:center')
-        response = redirect(url)
+        response = redirect(request.GET.get('next') or reverse('users:center'))
         # 设置cooike带回username （不管以验证是么信息登录的都是显示用户名）
-        response.set_cookie('username', user.username)
+        response.set_cookie('username', user.username, max_age=settings.SESSION_COOKIE_AGE if remembered else None)
         return response
 
 
 # 直接推出
-class LogoutUser(View):
+class LogoutView(View):
     def get(self, request):
         print('aaa')
         # 逻辑是这样，但是存储的不仅仅是kyy名
@@ -151,16 +158,16 @@ class LogoutUser(View):
         return response
 
 
-class UserCenterInfo(View):
+class UserCenterInfoView(View):
     def get(self, request):
-        # 一个是经验的看request.user,,此为一类对象，导包无效，可以转字符串
+        # 一个是经验的看request.user,此为一类对象，导包无效，可以转字符串
         # print(request.user)
         # if str(request.user) == 'AnonymousUser':
         #     print(request.user)
         #     return redirect(reverse('users:login'))
 
         # django提供了快速的验证方法, 返回True/False
-        if request.user.is_authenticated():
+        if request.user.is_authenticated:
             return render(request, 'user_center_info.html')
         else:
             # 加入此项是为了回到来时的用户中心
@@ -168,6 +175,44 @@ class UserCenterInfo(View):
             return redirect(url)
 
 
-
+class UserCenterEmailView(LoginRequiredView):
+    def put(self, request):
+        # 接收数据：email
+        json_dict = json.loads(request.body.decode())
+        email = json_dict.get('email')
+        # 校验
+        # 1、非空
+        if not email:
+            return http.HttpResponseForbidden('缺少必传参数email')
+        # 2、匹配格式
+        if re.match('r[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+            return http.HttpResponseForbidden('邮箱格式不正确')
+        # 业务逻辑
+        # 1、获取对象,request的user属性封装着真正的一个模型类对象
+        user = request.user
+        # 2、更新数据库的字段
+        # 此类更新会更新数据库中的最近一次修改时间， 但是前段代码有问题，会随着重新发送邮箱时重复设置邮箱
+        # user.email = email
+        # user.save()
+        # 此类更新不会更新数据表中的最近一次修改时间
+        User.objects.filter(id=user.id).update(email=email)   # 邮箱只要设置成功了，此代码都是无效的修改
+        
+        # from django.core.mail import send_mail
+        # # send_mail(subject='主题', message='邮件普通正文，是纯文本', from_email='发件人', recipient_list=[email], html_message='超文本的邮件内容')
+        # html_message='<li><a href="/info/" class="active">· 个人信息</a></li>'
+        # send_mail(subject='defult', message='hello, welcome', from_email=settings.EMAIL_HOST_USER, recipient_list=[email], html_message=html_message)
+        verify_url = generate_verify_url(user)
+        send_verify_email.delay(email, verify_url)
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '已发送邮件'})
+#
+#
+#
+#
+#
+#
+# 1、获取对象
+# 2、更新数据库的字段
+# # 发送一个验证邮箱（和手机验证码时机是相同的）
+# # 响应
 
 
