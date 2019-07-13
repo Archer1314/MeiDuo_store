@@ -26,4 +26,6 @@ urlpatterns = [
     url(r'^', include('contents.urls', namespace='contents')),
     # qq 登录应用
     url(r'^', include('oauth.urls', namespace='oauth')),
+    # 收货地址的应用
+    url(r'^', include('areas.urls', namespace='areas')),
 ]

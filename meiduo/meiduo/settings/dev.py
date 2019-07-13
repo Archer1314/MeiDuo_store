@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'verifications.apps.VerificationsConfig',
     'oauth.apps.OauthConfig',
     'contents.apps.ContentsConfig',
+    'areas.apps.AreasConfig',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

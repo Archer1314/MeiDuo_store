@@ -19,6 +19,7 @@ class RETCODE:
     PARAMERR            = "5006"
     STOCKERR            = "5007"
     SERVERERR           ="5008"
+    ADDRESSLIMIT       = '5009'
 
 
 
@@ -42,5 +43,5 @@ err_msg = {
     RETCODE.OPENIDERR          : u"无效的openid",
     RETCODE.PARAMERR           : u"参数错误",
     RETCODE.STOCKERR           : u"库存不足",
-
+    RETCODE.ADDRESSLIMIT       : u'收货地址数量超上限'
 }

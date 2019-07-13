@@ -1,7 +1,7 @@
 import re
 from django.contrib.auth.backends import ModelBackend
 from .models import User
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadData
 from django.conf import settings
 
 
@@ -29,11 +29,31 @@ class ManyUser(ModelBackend):
 
 def generate_verify_url(user):
     # 新建加密对象
-    serializer = Serializer(settings.SECRET_KEY, 600)
+    serializer = Serializer(settings.SECRET_KEY, 3600 * 24)
     # 准备加密数据
-    data = {'userid':user.id}
-    base_url = 'http://www.meiduo.site:8000/emails/verification/'
+    data = {'user_id': user.id, 'email': user.email}
+    base_url = 'http://www.meiduo.site:8000/emails/verifications/'
     # 加密
-    data = serializer.dumps(data).decode()
+    data_bytes = serializer.dumps(data)
+    # 拼接url
+    url = base_url + '?token=' + data_bytes.decode()
     # 返回
-    return base_url + data
+    return url
+
+
+def check_verify_url(token):
+    # 新建加密对象
+    serializer = Serializer(settings.SECRET_KEY, 3600 * 24)
+    print(12)
+    try:
+        data = serializer.loads(token)
+        user_id = data.get('user_id')
+        email = data.get('email')
+        print(user_id, email)
+        try:
+            user = User.objects.get(id=user_id, email=email)
+            return user
+        except User.DoesNotExist:
+            return None
+    except BadData:
+        return None

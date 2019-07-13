@@ -1,7 +1,7 @@
 import json
 from django.contrib.auth import login
 from django.contrib.auth import logout
-
+from django.db import DatabaseError
 from django.shortcuts import render, redirect
 from django import http
 from django.urls import reverse
@@ -12,10 +12,12 @@ from .models import User
 from meiduo.utils.response_code import RETCODE
 from django.views.generic.base import View
 from django.contrib.auth import authenticate    # 已经被ManyUser继承
-from .utils import ManyUser, generate_verify_url
+from .utils import ManyUser, generate_verify_url, check_verify_url
 from django.conf import settings
 from meiduo.utils.views import LoginRequiredView
 from celery_tasks.email.tasks import send_verify_email
+from .models import Addresses
+
 
 class RegisterView(View):
     def get(self, request):
@@ -158,21 +160,25 @@ class LogoutView(View):
         return response
 
 
+# class UserCenterInfoView(View):
+#     def get(self, request):
+#         # 一个是经验的看request.user,此为一类对象，导包无效，可以转字符串
+#         # print(request.user)
+#         # if str(request.user) == 'AnonymousUser':
+#         #     print(request.user)
+#         #     return redirect(reverse('users:login'))
+#
+#         # django提供了快速的验证方法, 返回True/False
+#         if request.user.is_authenticated:
+#             return render(request, 'user_center_info.html')
+#         else:
+#             # 加入此项是为了回到来时的用户中心
+#             url = reverse('users:login') + '?next=info'
+#             return redirect(url)
+
 class UserCenterInfoView(View):
     def get(self, request):
-        # 一个是经验的看request.user,此为一类对象，导包无效，可以转字符串
-        # print(request.user)
-        # if str(request.user) == 'AnonymousUser':
-        #     print(request.user)
-        #     return redirect(reverse('users:login'))
-
-        # django提供了快速的验证方法, 返回True/False
-        if request.user.is_authenticated:
-            return render(request, 'user_center_info.html')
-        else:
-            # 加入此项是为了回到来时的用户中心
-            url = reverse('users:login') + '?next=info'
-            return redirect(url)
+        return render(request, 'user_center_info.html')
 
 
 class UserCenterEmailView(LoginRequiredView):
@@ -195,7 +201,8 @@ class UserCenterEmailView(LoginRequiredView):
         # user.email = email
         # user.save()
         # 此类更新不会更新数据表中的最近一次修改时间
-        User.objects.filter(id=user.id).update(email=email)   # 邮箱只要设置成功了，此代码都是无效的修改
+        # 邮箱只要设置成功了，此代码都是无效的修改, email 不会为空
+        User.objects.filter(id=user.id, email='').update(email=email)
         
         # from django.core.mail import send_mail
         # # send_mail(subject='主题', message='邮件普通正文，是纯文本', from_email='发件人', recipient_list=[email], html_message='超文本的邮件内容')
@@ -204,15 +211,296 @@ class UserCenterEmailView(LoginRequiredView):
         verify_url = generate_verify_url(user)
         send_verify_email.delay(email, verify_url)
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '已发送邮件'})
-#
-#
-#
-#
-#
-#
-# 1、获取对象
-# 2、更新数据库的字段
-# # 发送一个验证邮箱（和手机验证码时机是相同的）
-# # 响应
+
+
+class UserEmailActiveView(View):
+    def get(self, request):
+        # 获取数据
+        token = request.GET.get('token')
+        print(token)
+        # 校验数据
+        if token is None:
+            return http.HttpResponseForbidden('连接损坏1')
+        user = check_verify_url(token)
+        print(type(user))
+        if user is None:
+            return http.HttpResponseForbidden('连接损坏2')
+        user.email_active = True
+        user.save()
+        return redirect(reverse('contents:index'))
+
+
+class UserCenterAreasView(LoginRequiredView):
+    def get(self, request):
+
+        addresses = request.user.addresses.filter(is_deleted=False)
+        address_dict_list = []
+        for address in addresses:
+            address_dict = {
+                'id': address.id,
+                'title': address.title,
+                'receiver': address.receiver,
+                'province_id': address.province_id,
+                'province': address.province.name,
+                'city_id': address.city_id,
+                'city': address.city.name,
+                'district_id': address.district_id,
+                'district': address.district.name,
+                'place': address.place,
+                'mobile': address.mobile,
+                'tel': address.tel,
+                'email': address.email,
+            }
+            address_dict_list.append(address_dict)
+        context = {
+            'default_address_id': request.user.default_address_id,
+            'addresses': address_dict_list,
+        }
+        return render(request, 'user_center_site.html', context)
+
+
+class UserAreasCreateView(LoginRequiredView):
+    def post(self, request):
+        # 先判断数量小鱼20,
+        user = request.user
+        # count = user.addresses.all().filter(is_deleted=False).count()
+        count = request.user.addresses.count()
+        if count >= 20:
+            return http.JsonResponse({'code':RETCODE.ADDRESSLIMIT,'errmsg': '收货地址数量超上限'})
+        # 获取数据
+        data = request.body.decode()   # from_data 是个字典
+        data_dict = json.loads(data)
+        title = data_dict.get('title')
+        receiver = data_dict.get('receiver')
+        province_id = data_dict.get('province_id')
+        city_id = data_dict.get('city_id')
+        district_id = data_dict.get('district_id')
+        place = data_dict.get('place')
+        mobile = data_dict.get('mobile')
+        tel = data_dict.get('tel')
+        email = data_dict.get('email')
+
+        # 校验数据
+        if not all([title, receiver, province_id, city_id, district_id, place, mobile]):
+            return http.HttpResponseForbidden('参数不全')
+        # 省市区有外建在，不可能是错的
+        # 一下都是前段校验过一遍的，报错直接禁止
+        if not re.match(r'^1[3-9]\d{9}$', mobile):
+            return http.HttpResponseForbidden('电话格式不正确')
+        if tel:
+            if not re.match(r'^(0[0-9]{2,3}-)?([2-9][0-9]{6,7})+(-[0-9]{1,4})?$', tel):
+                return http.HttpResponseForbidden('固定电话格式不正确')
+        if email:
+            if not re.match(r'^[a-z0-9][\w.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+                return http.HttpResponseForbidden('邮箱格式不正确')
+
+        # 保存数据  # 必须是继承认证类才可以这么获取用户
+        # user = request.user
+        try:
+            address = Addresses.objects.create(user=user, title=title, receiver=receiver, province_id=province_id, city_id=city_id,
+                                               district_id=district_id,place=place, mobile=mobile, tel=tel, email=email)
+            # 设置默认地址
+            if user.default_address is None:
+                user.default_address = address
+                user.save()
+        except:
+            return http.HttpResponseForbidden('添加失败')
+
+        # 把新增的address模型对象转换成字典,并响应给前端
+        address_dict = {
+            'id': address.id,   # 该项前端用不着，为后续的修改做铺垫，知道是哪条地址要修改
+            'title': address.title,
+            'receiver': address.receiver,
+            'province_id': address.province_id,
+            'province': address.province.name,
+            'city_id': address.city_id,
+            'city': address.city.name,
+            'district_id': address.district_id,
+            'district': address.district.name,
+            'place': address.place,
+            'mobile': address.mobile,
+            'tel': address.tel,
+            'email': address.email,
+        }
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'address': address_dict})
+
+
+class UpdateDestroyAddressView(LoginRequiredView):
+    def put(self, request, address_id):
+        try:
+            # 直接用Address表进行查数据
+            # user = request.user
+            # address = Addresses.objects.get(id=address_id, user=request.user, is_deleted=False)
+            # user对象通过外键访问另一张表(这是一访问多) request.user.addresses是一个query_set
+            address = request.user.addresses.get(id=address_id, user=request.user, is_deleted=False)
+            # 此时已有的防异常条件： 认证用户、address_id 有， 此判断有无必要
+            if address is None:
+                return http.HttpResponseForbidden('非正常请求')
+        except DatabaseError:
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '数据异常'})
+        #  获取参数
+        data = request.body.decode()  # from_data 是个字典
+        data_dict = json.loads(data)
+        title = data_dict.get('title')
+        receiver = data_dict.get('receiver')
+        province_id = data_dict.get('province_id')
+        city_id = data_dict.get('city_id')
+        district_id = data_dict.get('district_id')
+        place = data_dict.get('place')
+        mobile = data_dict.get('mobile')
+        tel = data_dict.get('tel')
+        email = data_dict.get('email')
+#         校验
+        # 校验数据
+        if not all([title, receiver, province_id, city_id, district_id, place, mobile]):
+            return http.JsonResponse({'code': RETCODE.NECESSARYPARAMERR, 'errmsg': '缺少必传参数'})
+        # 省市区有外建在，不可能是错的
+        # 一下都是前段校验过一遍的，报错直接禁止
+        if not re.match(r'^1[3-9]\d{9}$', mobile):
+            return http.JsonResponse({'code': RETCODE.MOBILEERR, 'errmsg': '手机号错误'})
+        if tel:
+            if not re.match(r'^(0[0-9]{2,3}-)?([2-9][0-9]{6,7})+(-[0-9]{1,4})?$', tel):
+                return http.JsonResponse({'code': RETCODE.TELERR, 'errmsg': '固定电话错误'})
+        if email:
+            if not re.match(r'^[a-z0-9][\w.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+                return http.JsonResponse({'code': RETCODE.EMAILERR, 'errmsg': '邮箱错误'})
+
+        # 修改
+        # 注意细节：若用updata 的方式更新， 注意必须重新取出这个address 返回， 否则前端展示的还是之前的久对象数据
+        try:
+            # address.user = user    # 地址所属对象不能修改
+            address.title = title
+            address.receiver = receiver
+            address.province_id = province_id
+            address.city_id = city_id
+            address.district_id = district_id
+            address.place = place
+            address.mobile = mobile
+            address.tel = tel
+            address.email = email
+            address.save()
+        except DatabaseError:
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '数据报错'})
+
+        # 把新增的address模型对象转换成字典,并响应给前端
+        # 注意返回的address对象是不是最新的，因为一开始有取出久的存于对象address
+        address_dict = {
+            'id': address.id,
+            'title': address.title,
+            'receiver': address.receiver,
+            'province_id': address.province_id,
+            'province': address.province.name,
+            'city_id': address.city_id,
+            'city': address.city.name,
+            'district_id': address.district_id,
+            'district': address.district.name,
+            'place': address.place,
+            'mobile': address.mobile,
+            'tel': address.tel,
+            'email': address.email,
+        }
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'address': address_dict})
+
+    def delete(self, request, address_id):
+        try:
+            # 直接用Address表进行查数据
+            user = request.user
+            address = Addresses.objects.get(id=address_id, user=user, is_deleted=False)
+            # user对象通过外键访问另一张表(这是一访问多) request.user.addresses是一个query_set
+            # address = request.user.addresses.get(id=address_id, user=request.user, is_deleted=False)
+            # 此时已有的防异常条件： 认证用户、address_id 有， 此判断有无必要
+            if address is None:
+                return http.HttpResponseForbidden('非正常请求')
+            # 逻辑删除，此种删除优于直接删除， 但是需要运维定时清理数据， save保存可以更新数据库的数据最近改动时间
+            address.is_deleted = True
+            address.save()
+        except DatabaseError:
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errms': '数据异常'})
+        return http.JsonResponse({'code': RETCODE.OK, 'errms': 'OK'})
+
+
+class SetDefaultAddressView(LoginRequiredView):
+    def put(self, request, address_id):
+        # 需要先对要修改地址进行校验， 异常及时返回
+        try:
+            # 直接用Address表进行查数据
+            user = request.user
+            address = Addresses.objects.get(id=address_id, user=user, is_deleted=False)
+            # user对象通过外键访问另一张表(这是一访问多) request.user.addresses是一个query_set
+            # address = request.user.addresses.get(id=address_id, user=request.user, is_deleted=False)
+            # 此时已有的防异常条件： 认证用户、address_id 有， 此判断有无必要
+            if address is None:
+                return http.HttpResponseForbidden('非正常请求')
+        except DatabaseError:
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '数据异常'})
+
+        # 修改成默认地址 ,注意是1。要修改User表中的数据， 2.对象赋予对象，id赋予id
+        user.default_address = address
+        user.save()
+        # user.default_address_id = address_id
+        # 前段根据user 的default_address_id属性，
+        # 在渲染地址是判断address 的id是否等于default_address_id进行渲染默认地址标记
+        # 故无需返回其它数据（user是响应数据）
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+
+
+class AddressChangeTitleView(LoginRequiredView):
+    def put(self, request, address_id):
+        # 校验address_id
+        try:
+            # 直接用Address表进行查数据
+            user = request.user
+            address = Addresses.objects.get(id=address_id, user=user, is_deleted=False)
+            # user对象通过外键访问另一张表(这是一访问多) request.user.addresses是一个query_set
+            # address = request.user.addresses.get(id=address_id, user=request.user, is_deleted=False)
+            # 此时已有的防异常条件： 认证用户、address_id 有， 此判断有无必要
+            if address is None:
+                return http.HttpResponseForbidden('非正常请求')
+            # 获取title
+            json_bytes = request.body.decode()
+            title = json.loads(json_bytes).get('title')
+            address.title = title
+            address.save()
+        except DatabaseError:
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '数据异常'})
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+
+
+class ChangePasswordView(LoginRequiredView):
+    def get(self, request):
+        return render(request, 'user_center_pass.html')
+
+    # 结合js 和html判断是post请求， 未提供请求的url， 所以是向本页面url发出请求
+    def post(self, request):
+        # 获取从参数
+        query_dict = request.POST
+        old_pwd = query_dict.get('old_pwd')
+        new_pwd = query_dict.get('new_pwd')
+        new_cpwd = query_dict.get('new_cpwd')
+
+        # 检查参数
+        if not all([old_pwd, new_cpwd, new_pwd]):
+            return http.HttpResponseForbidden('参数不全')
+        if not re.match(r'^[0-9A-Za-z]{8,20}$', new_pwd):
+            return http.HttpResponseForbidden('原始密码不正确')
+        if not re.match(r'^[0-9A-Za-z]{8,20}$', new_pwd):
+            return http.HttpResponseForbidden('新密码不正确')
+        if new_pwd != new_cpwd:
+            return render(request, 'user_center_pass.html', {'change_pwd_errmsg': '密码不一致'})
+        # 业务逻辑  （增删该查）
+        try:
+            user = request.user
+            user.set_password(new_pwd)  # 此中设置密码会时删掉sessionid
+            # user.password = new_pwd    # 此中设置密码不会删掉sessionid
+            user.save()
+        except DatabaseError:
+            return http.HttpResponse('数据异常')
+
+        # 删除username cookie, 避免退出后页面还渲染出名字
+        # 逻辑与logout 退出相同
+        # response = redirect(reverse('users:logout'))
+        # logout(request)
+        # response.delete_cookie('username')
+        return redirect(reverse('users:logout'))
 
 
