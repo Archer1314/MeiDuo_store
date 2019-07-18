@@ -160,25 +160,25 @@ class LogoutView(View):
         return response
 
 
-# class UserCenterInfoView(View):
-#     def get(self, request):
-#         # 一个是经验的看request.user,此为一类对象，导包无效，可以转字符串
-#         # print(request.user)
-#         # if str(request.user) == 'AnonymousUser':
-#         #     print(request.user)
-#         #     return redirect(reverse('users:login'))
-#
-#         # django提供了快速的验证方法, 返回True/False
-#         if request.user.is_authenticated:
-#             return render(request, 'user_center_info.html')
-#         else:
-#             # 加入此项是为了回到来时的用户中心
-#             url = reverse('users:login') + '?next=info'
-#             return redirect(url)
-
 class UserCenterInfoView(View):
     def get(self, request):
-        return render(request, 'user_center_info.html')
+        # 一个是经验的看request.user,此为一类对象，导包无效，可以转字符串
+        # print(request.user)
+        # if str(request.user) == 'AnonymousUser':
+        #     print(request.user)
+        #     return redirect(reverse('users:login'))
+
+        # django提供了快速的验证方法, 返回True/False
+        if request.user.is_authenticated:
+            return render(request, 'user_center_info.html')
+        else:
+            # 加入此项是为了回到来时的用户中心
+            url = reverse('users:login') + '?next=/info/'
+            return redirect(url)
+
+# class UserCenterInfoView(LoginRequiredView):
+#     def get(self, request):
+#         return render(request, 'user_center_info.html')
 
 
 class UserCenterEmailView(LoginRequiredView):
@@ -504,10 +504,10 @@ class ChangePasswordView(LoginRequiredView):
         return redirect(reverse('users:logout'))
 
 
-class HistoryGoodsView(LoginRequiredView):
-    def get(self, request):
-        user = request.user
-
-        pass
+# class HistoryGoodsView(LoginRequiredView):
+#     def get(self, request):
+#         user = request.user
+#
+#         pass
 
 

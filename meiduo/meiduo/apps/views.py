@@ -123,7 +123,8 @@ class CartsView(View):
             for sku_id_bytes in redis_carts:
                 cart_dict[int(sku_id_bytes)] = {
                     'count': int(redis_carts[sku_id_bytes]),
-                    'selected': (sku_id_bytes in selected_ids)
+                    'selected': (True if sku_id_bytes in selected_ids else False)
+                    # 'selected': (sku_id_bytes in selected_ids)
                 }
 
 
