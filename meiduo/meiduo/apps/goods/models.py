@@ -3,10 +3,11 @@ from meiduo.utils.models import BaseModel
 # Create your models here.
 
 
+
 class GoodsCategory(BaseModel):
     """商品类别"""
     name = models.CharField(max_length=10, verbose_name='名称')
-    parent = models.ForeignKey('self', related_name='subs', null=True, blank=True, on_delete=models.CASCADE, verbose_name='父亲类')
+    parent = models.ForeignKey('self', related_name='subs', null=True, blank=True, on_delete=models.CASCADE, verbose_name='父类别')
 
     class Meta:
         db_table = 'tb_goods_category'
@@ -70,8 +71,8 @@ class SPU(BaseModel):
     category3 = models.ForeignKey(GoodsCategory, on_delete=models.PROTECT, related_name='cat3_spu', verbose_name='三级类别')
     sales = models.IntegerField(default=0, verbose_name='销量')
     comments = models.IntegerField(default=0, verbose_name='评价数')
-    desc_pack = models.TextField(default='', verbose_name='包装信息')
     desc_detail = models.TextField(default='', verbose_name='详细介绍')
+    desc_pack = models.TextField(default='', verbose_name='包装信息')
     desc_service = models.TextField(default='', verbose_name='售后服务')
 
     class Meta:
@@ -109,16 +110,16 @@ class SKU(BaseModel):
 
 class SKUImage(BaseModel):
     """SKU图片"""
-    sku = models.ForeignKey(SPU, on_delete=models.CASCADE, verbose_name='sku')
-    name = models.CharField(max_length=20, verbose_naem='规格名称')
+    sku = models.ForeignKey(SKU, on_delete=models.CASCADE, verbose_name='sku')
+    image = models.ImageField(verbose_name='图片')
 
     class Meta:
-        db_table = 'tb_spu_specification'
-        verbose_name = '商品SPU规格'
+        db_table = 'tb_sku_image'
+        verbose_name = 'SKU图片'
         verbose_name_plural = verbose_name
 
     def __str__(self):
-        return '%s :%s' % (self.sku.name, self.id)
+        return '%s %s' % (self.sku.name, self.id)
 
 
 class SPUSpecification(BaseModel):
@@ -132,7 +133,7 @@ class SPUSpecification(BaseModel):
         verbose_name_plural = verbose_name
 
     def __str__(self):
-        return '%s : %s' % (self.spu.name, self.name)
+        return '%s: %s' % (self.spu.name, self.name)
 
 
 class SpecificationOption(BaseModel):
@@ -162,3 +163,15 @@ class SKUSpecification(BaseModel):
 
     def __str__(self):
         return '%s: %s - %s' % (self.sku, self.spec.name, self.option.value)
+
+
+class GoodsVisitCount(BaseModel):
+    """统计分类商品访问量模型类"""
+    category = models.ForeignKey(GoodsCategory, on_delete=models.CASCADE, verbose_name='商品分类')
+    count = models.IntegerField(verbose_name='访问量', default=0)
+    date = models.DateField(auto_now_add=True, verbose_name='统计日期')
+
+    class Meta:
+        db_table = 'tb_goods_visit'
+        verbose_name = '统计分类商品访问量'
+        verbose_name_plural = verbose_name

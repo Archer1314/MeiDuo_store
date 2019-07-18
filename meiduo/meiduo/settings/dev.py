@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'oauth.apps.OauthConfig',
     'contents.apps.ContentsConfig',
     'areas.apps.AreasConfig',
+    'goods.apps.GoodsConfig',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -136,7 +137,21 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
-    }
+    },
+    'history': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/3',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    },
+    'carts': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/4',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    },
 }
 # 指定session存储的模式为本机内存(更准确是内存模式),不指定默认存储在数据库db(已经在INSTALLED_APPS上注册),
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
@@ -177,8 +192,9 @@ USE_I18N = True
 
 USE_L10N = True
 
-USE_TZ = True
+# USE_TZ = True 默认是True， 使用世界时区
 
+USE_TZ = False  # 修改为False， 使用定义的TIME_ZONE
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
@@ -262,3 +278,13 @@ EMAIL_PORT = 25  # 发邮件端口
 EMAIL_HOST_USER = 'itcast99@163.com'  # 授权的邮箱
 EMAIL_HOST_PASSWORD = 'python99'  # 邮箱授权时获得的密码，非注册登录密码
 EMAIL_FROM = '美多商城<itcast99@163.com>'  # 发件人抬头
+
+# Roor是指定本项目/本电脑的的资源
+MEDIA_ROOT = ''
+# URL是指定远程的服务器资源的， 使用http协议沟通数据
+# 单独这一句也可以， 这样模板文件在image.url时拼接的路径就是FDFS_BASE_URL + file_id, 可以访问到文件的正确远程路径
+# FDFS_BASE_URL = 'http://192.168.234.129:8888/'
+
+# 自定义的文件存储类，要使用前需要配置，在该类中定义拼接URL的方式
+# DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+DEFAULT_FILE_STORAGE = 'meiduo.apps.contents.utils.ImgFastStorage'

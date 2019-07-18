@@ -504,3 +504,10 @@ class ChangePasswordView(LoginRequiredView):
         return redirect(reverse('users:logout'))
 
 
+class HistoryGoodsView(LoginRequiredView):
+    def get(self, request):
+        user = request.user
+
+        pass
+
+

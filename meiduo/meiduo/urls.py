@@ -28,4 +28,9 @@ urlpatterns = [
     url(r'^', include('oauth.urls', namespace='oauth')),
     # 收货地址的应用
     url(r'^', include('areas.urls', namespace='areas')),
+    # 商品列表 （选择三级商品分组， 京东上搜索网页界面的数据也是类似，但是路由不一样，应该是单独做了个应用）
+    # http://www.meiduo.site:8000/list/115/1/
+    url(r'^', include('goods.urls', namespace='goods')),
+    # 购物车应用
+    url(r'^', include('carts.urls', namespace='carts')),
 ]
