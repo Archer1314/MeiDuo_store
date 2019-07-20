@@ -123,8 +123,7 @@ class CartsView(View):
             for sku_id_bytes in redis_carts:
                 cart_dict[int(sku_id_bytes)] = {
                     'count': int(redis_carts[sku_id_bytes]),
-                    'selected': (True if sku_id_bytes in selected_ids else False)
-                    # 'selected': (sku_id_bytes in selected_ids)
+                    'selected': (sku_id_bytes in selected_ids)
                 }
 
 
@@ -137,7 +136,6 @@ class CartsView(View):
             else:
                 # 没有cookie购物车数据,就显示一个空白的购物车界面
                 return render(request, 'cart.html')
-
 
         # 为了sku_id查询sku模型及包装模板需要渲染的数据代码 登录和未登录共用同一个代码
         # 查询sku模型
@@ -304,3 +302,116 @@ class CartsView(View):
             response.set_cookie('carts', cart_str)
             return response
 
+
+class CartsSelectedAllView(View):
+    """购物车全选"""
+
+    def put(self, request):
+        # 接收请求体中selected参数
+        json_dict = json.loads(request.body.decode())
+        selected = json_dict.get('selected')
+        # 校验
+        if isinstance(selected, bool) is False:
+            return http.HttpResponseForbidden('参数类型有误')
+
+        # 获取当前请求的user
+        user = request.user
+        # 判断是否登录
+        if user.is_authenticated:
+            # 登录用户操作redis
+            # 创建redis连接对象
+            redis_conn = get_redis_connection('carts')
+            # 判断当前是全选还是取消全选
+            if selected:
+                # 全选
+                # 先获取hash中的所有数据,再取到里面的所有key
+                redis_carts = redis_conn.hgetall('carts_%s' % user.id)
+                sku_ids = redis_carts.keys()
+                # 将购物车中所有sku_id添加到set中
+                redis_conn.sadd('selected_%s' % user.id, *sku_ids)
+            else:
+                # 取消
+                # 将当前用户的set集合直接删除
+                redis_conn.delete('selected_%s' % user.id)
+
+            # 响应
+            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+        else:
+            # 未登录用户操作cookie
+            # 获取cookie购物车数据
+            cart_str = request.COOKIES.get('carts')
+            # 判断是否有cookie购物车数据
+            if cart_str:
+                # 有就把字符串转字典
+                cart_dict = pickle.loads(base64.b64decode(cart_str.encode()))
+            else:
+                # 没有就响应
+                return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '没有cookie'})
+            # 修改字典中每个value中的selected对应的值为True或False
+            for sku_id in cart_dict:
+                cart_dict[sku_id] = {
+                    'count': cart_dict[sku_id]['count'],
+                    'selected': selected
+                }
+            # 转字典转换成字符串
+            cart_str = base64.b64encode(pickle.dumps(cart_dict)).decode()
+            # 创建响应对象
+            response = http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+            # 设置cookie
+            response.set_cookie('carts', cart_str)
+            # 响应
+            return response
+
+
+class CartsSimpleView(View):
+    """简单版购物车"""
+
+    def get(self, request):
+        """购物车数据展示"""
+        # 先获取请求对象中的user
+        user = request.user
+
+        # 判断用户是否登录
+        if user.is_authenticated:
+            # 登录用户获取redis购物车数据
+
+            # 创建redis连接对象
+            redis_conn = get_redis_connection('carts')
+            # 获取hash中的数据 {b'1': b'2, b'2':b'1'}
+            redis_carts = redis_conn.hgetall('carts_%s' % user.id)
+            # 获取set集合中的数据 {b'1', b'2'}
+            selected_ids = redis_conn.smembers('selected_%s' % user.id)
+            # 把redis购物车数据格式转换成cookie购物车数据格式
+            cart_dict = {}  # 准备一个空字典用来装redis购物车所有数据
+            for sku_id_bytes in redis_carts:
+                cart_dict[int(sku_id_bytes)] = {
+                    'count': int(redis_carts[sku_id_bytes]),
+                    'selected': (sku_id_bytes in selected_ids)
+                }
+
+
+        else:
+            # 未登录用户获取cookie购物车数据
+            cart_str = request.COOKIES.get('carts')
+            if cart_str:
+                # 有cookie购物车数据就将它从字符串转字典
+                cart_dict = pickle.loads(base64.b64decode(cart_str.encode()))
+            else:
+                # 没有cookie购物车数据,就显示一个空白的购物车界面
+                return render(request, 'cart.html')
+
+        # 为了sku_id查询sku模型及包装模板需要渲染的数据代码 登录和未登录共用同一个代码
+        # 查询sku模型
+        sku_qs = SKU.objects.filter(id__in=cart_dict.keys())
+        cart_skus = []  # 此列表用来包装前端界面需要渲染的所有购物车商品数据
+        for sku in sku_qs:
+            # 获取指定商品要购买的数量
+            count = cart_dict[sku.id]['count']
+            cart_skus.append({
+                'id': sku.id,
+                'name': sku.name,
+                'default_image_url': sku.default_image.url,
+                'count': count,
+            })
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'cart_skus': cart_skus})

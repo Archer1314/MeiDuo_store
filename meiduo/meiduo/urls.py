@@ -15,9 +15,12 @@ Including another URLconf
 """
 from django.conf.urls import url, include
 from django.contrib import admin
+import haystack
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
+    url(r'^search/', include('haystack.urls')),
+
     # 用户应用
     url(r'^', include('users.urls', namespace='users')),
     # 图形验证码、短信验证码应用
@@ -33,4 +36,6 @@ urlpatterns = [
     url(r'^', include('goods.urls', namespace='goods')),
     # 购物车应用
     url(r'^', include('carts.urls', namespace='carts')),
+    # 订单应用
+    url(r'^', include('orders.urls', namespace='orders')),
 ]

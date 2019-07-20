@@ -17,6 +17,7 @@ from django.conf import settings
 from meiduo.utils.views import LoginRequiredView
 from celery_tasks.email.tasks import send_verify_email
 from .models import Addresses
+from carts.utils import merge_cart_cookie_to_redis
 
 
 class RegisterView(View):
@@ -143,6 +144,8 @@ class LoginView(View):
         response = redirect(request.GET.get('next') or reverse('users:center'))
         # 设置cooike带回username （不管以验证是么信息登录的都是显示用户名）
         response.set_cookie('username', user.username, max_age=settings.SESSION_COOKIE_AGE if remembered else None)
+        """合并购物车"""
+        merge_cart_cookie_to_redis(request, response)
         return response
 
 

@@ -219,3 +219,6 @@ class BrowseHistoriesView(View):
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'skus': skus})
 
 
+
+
+

@@ -10,4 +10,7 @@ urlpatterns = [
     # 购物车的商品全选
     # /carts/selection/
     url(r'^carts/selection/$', views.CartsSelectAllView.as_view()),
+    # 购物车的简单展示，在主页、详情等页面展示
+    # /carts/simple/
+    url(r'^carts/simple/$', views.CartsSimpleView.as_view()),
     ]

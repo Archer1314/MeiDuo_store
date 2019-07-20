@@ -39,12 +39,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # 导入的应用
+    'haystack',   # 全文检索
+
+    # 自定义的应用， 如果有迁移建表必须要登记
     'users.apps.UsersConfig',
     'verifications.apps.VerificationsConfig',
     'oauth.apps.OauthConfig',
     'contents.apps.ContentsConfig',
     'areas.apps.AreasConfig',
     'goods.apps.GoodsConfig',
+    'orders.apps.OrdersConfig',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -288,3 +294,19 @@ MEDIA_ROOT = ''
 # 自定义的文件存储类，要使用前需要配置，在该类中定义拼接URL的方式
 # DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 DEFAULT_FILE_STORAGE = 'meiduo.apps.contents.utils.ImgFastStorage'
+
+
+# Haystack
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine',
+        'URL': 'http://192.168.234.129:9200/', # Elasticsearch服务器ip地址，端口号固定为9200
+        'INDEX_NAME': 'meiduo_mall', # Elasticsearch建立的索引库的名称，
+    },
+}
+
+# 当添加、修改、删除数据时，自动生成索引
+HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
+
+# 每此查询的分页条数
+HAYSTACK_SEARCH_RESULTS_PER_PAGE = 5
