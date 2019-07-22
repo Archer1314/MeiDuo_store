@@ -50,7 +50,6 @@ class IndexContents(View):
             'categories': categories,
             'contents': contents
         }
-        print(context)
         return render(request, 'index.html', context)
 
 

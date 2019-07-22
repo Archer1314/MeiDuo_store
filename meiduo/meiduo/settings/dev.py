@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'areas.apps.AreasConfig',
     'goods.apps.GoodsConfig',
     'orders.apps.OrdersConfig',
+    'payment.apps.PaymentConfig',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -210,6 +211,8 @@ USE_TZ = False  # 修改为False， 使用定义的TIME_ZONE
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+# 用户登录校验失败的人重定向到登录页面
+LOGIN_URL = '/login/'
 
 LOGGING = {
     'version': 1,
@@ -310,3 +313,9 @@ HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
 
 # 每此查询的分页条数
 HAYSTACK_SEARCH_RESULTS_PER_PAGE = 5
+
+# 支付配置
+ALIPAY_APPID = '2016101000651850'
+ALIPAY_DEBUG = True  # 表示是沙箱环境还是真实支付环境
+ALIPAY_URL = 'https://openapi.alipaydev.com/gateway.do'
+ALIPAY_RETURN_URL = 'http://www.meiduo.site:8000/payment/status/'
