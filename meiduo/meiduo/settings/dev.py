@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
     # 导入的应用
     'haystack',   # 全文检索
+    'django_crontab',  # 定时调度任务
 
     # 自定义的应用， 如果有迁移建表必须要登记
     'users.apps.UsersConfig',
@@ -281,12 +282,17 @@ AUTHENTICATION_BACKENDS = ['users.utils.ManyUser']
 # EMAIL_SSL_KEYFILE = None
 # EMAIL_TIMEOUT = None
 
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # 指定邮件后端
 EMAIL_HOST = 'smtp.163.com'  # 发邮件主机
 EMAIL_PORT = 25  # 发邮件端口
 EMAIL_HOST_USER = 'itcast99@163.com'  # 授权的邮箱
 EMAIL_HOST_PASSWORD = 'python99'  # 邮箱授权时获得的密码，非注册登录密码
 EMAIL_FROM = '美多商城<itcast99@163.com>'  # 发件人抬头
+
+# 校验邮箱的拼接
+EMAIL_VERIFY_URL = 'http://www.meiduo.site:8000/emails/verifications/'
+
 
 # Roor是指定本项目/本电脑的的资源
 MEDIA_ROOT = ''
@@ -319,3 +325,11 @@ ALIPAY_APPID = '2016101000651850'
 ALIPAY_DEBUG = True  # 表示是沙箱环境还是真实支付环境
 ALIPAY_URL = 'https://openapi.alipaydev.com/gateway.do'
 ALIPAY_RETURN_URL = 'http://www.meiduo.site:8000/payment/status/'
+
+
+CRONJOBS = [
+    # 每1分钟生成一次首页静态文件
+    ('*/1 * * * *', 'contents.crons.generate_static_index_html', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/crontab.log'))
+]
+
+CRONTAB_COMMAND_PREFIX = 'LANG_ALL=zh_cn.UTF-8'

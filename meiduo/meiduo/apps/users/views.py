@@ -12,12 +12,16 @@ from .models import User
 from meiduo.utils.response_code import RETCODE
 from django.views.generic.base import View
 from django.contrib.auth import authenticate    # 已经被ManyUser继承
-from .utils import ManyUser, generate_verify_url, check_verify_url
+from .utils import ManyUser, generate_verify_url, check_verify_url, generate_access_token, check_access_token
 from django.conf import settings
 from meiduo.utils.views import LoginRequiredView
 from celery_tasks.email.tasks import send_verify_email
 from .models import Addresses
 from carts.utils import merge_cart_cookie_to_redis
+from django.db.models import Q
+import random
+from .constants import Constants
+from celery_tasks.sms.tasks import sms_code_send
 
 
 class RegisterView(View):
@@ -194,7 +198,7 @@ class UserCenterEmailView(LoginRequiredView):
         if not email:
             return http.HttpResponseForbidden('缺少必传参数email')
         # 2、匹配格式
-        if re.match('r[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+        if re.match('r[a-z0-9][\w.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
             return http.HttpResponseForbidden('邮箱格式不正确')
         # 业务逻辑
         # 1、获取对象,request的user属性封装着真正的一个模型类对象
@@ -211,6 +215,8 @@ class UserCenterEmailView(LoginRequiredView):
         # # send_mail(subject='主题', message='邮件普通正文，是纯文本', from_email='发件人', recipient_list=[email], html_message='超文本的邮件内容')
         # html_message='<li><a href="/info/" class="active">· 个人信息</a></li>'
         # send_mail(subject='defult', message='hello, welcome', from_email=settings.EMAIL_HOST_USER, recipient_list=[email], html_message=html_message)
+        # 必须要重新获取一下
+        user = User.objects.get(id=user.id)
         verify_url = generate_verify_url(user)
         send_verify_email.delay(email, verify_url)
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '已发送邮件'})
@@ -223,14 +229,14 @@ class UserEmailActiveView(View):
         print(token)
         # 校验数据
         if token is None:
-            return http.HttpResponseForbidden('连接损坏1')
+            return http.HttpResponseForbidden('缺少token')
         user = check_verify_url(token)
         print(type(user))
         if user is None:
-            return http.HttpResponseForbidden('连接损坏2')
+            return http.HttpResponseForbidden('token无效')
         user.email_active = True
         user.save()
-        return redirect(reverse('contents:index'))
+        return redirect(reverse('users:center'))
 
 
 class UserCenterAreasView(LoginRequiredView):
@@ -264,7 +270,7 @@ class UserCenterAreasView(LoginRequiredView):
 
 class UserAreasCreateView(LoginRequiredView):
     def post(self, request):
-        # 先判断数量小鱼20,
+        # 先判断数量小于20,
         user = request.user
         # count = user.addresses.all().filter(is_deleted=False).count()
         count = request.user.addresses.count()
@@ -507,10 +513,156 @@ class ChangePasswordView(LoginRequiredView):
         return redirect(reverse('users:logout'))
 
 
-# class HistoryGoodsView(LoginRequiredView):
-#     def get(self, request):
-#         user = request.user
-#
-#         pass
+class FindPassword(View):
+    """找回密码网页"""
+    def get(self, request):
+        return render(request, 'find_password.html')
+
+
+class FindPasswordUniqueMake(View):
+    """校验用户"""
+    def get(self, request, username):
+        # 获取请求参数
+        json_dict = request.GET
+        text = json_dict.get('text')
+        uuid = json_dict.get('image_code_id')
+
+        # 校验uuid 和图片内容
+        if not all([text, uuid]):
+            return http.JsonResponse({'code': RETCODE.PARAMERR, 'errmsg': '参数不全'})
+
+        redis_conn = get_redis_connection('verifications')
+        redis_text = redis_conn.get(uuid)
+        if not redis_text:
+            return http.JsonResponse({'code': RETCODE.IMAGECODEERR, 'err_msg': '图形验证码过期'})
+        redis_conn.delete(uuid)
+        if redis_text.decode().lower() != text.lower():
+            return http.JsonResponse({'code': RETCODE.IMAGECODEERR, 'err_msg': '图形码输入不正确'})
+
+        # 校验及判断用户是用手机还是用户名登录
+        try:
+            if re.match(r'^1[3-9]\d{9}$', username):
+                user = User.objects.get(telephone=username)
+            else:
+                user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return http.JsonResponse({'code': RETCODE.PARAMERR, 'errmsg': '用户名或手机号有误'})
+        # user = User.objects.filter(Q(username=username) | Q(telephone=username))
+        # if user.count != 1:
+        #     return http.JsonResponse({'code': RETCODE.PARAMERR, 'errmsg': '用户名或手机号有误'})
+
+        # 业务逻辑
+        # 获取手机号
+
+        # 响应
+        # 生成access_token,带有用户唯一信息
+        access_token = generate_access_token(user)
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'access_token':access_token, 'mobile': user.telephone})
+
+
+class FindPasswordSmsCode(View):
+    """发短信"""
+    def get(self, request):
+        # 获取access_token参数
+        access_token = request.GET.get('access_token')
+        # 校验参数
+        if not access_token:
+            return http.JsonResponse({'code': RETCODE.PARAMERR, 'errmsg': '参数不全'})
+        # 根据token获取到手机号
+        user = check_access_token(access_token)
+        mobile = user.telephone
+        # 获取到手机号之后
+        redis_conn = get_redis_connection('verifications')
+        count = redis_conn.get('sending_flag_%s' % mobile)
+        if count:
+            return http.JsonResponse({'code': RETCODE.THROTTLINGERR, 'err_msg': '频繁访问'})
+
+        # 生成验证码信息
+        sms_code = '%06d' % random.randint(0, 999999)
+        # 中断显示验证码，性能
+        print(sms_code)
+        # 保存手机验证码的和手机号
+        # 保存手机发送验证码的状态信息
+        pl = redis_conn.pipeline()
+        pl.setex('sms_code_%s' % mobile, Constants.SMS_CODE_EXPIRE_REDIS, sms_code)
+        pl.setex('sending_flag_%s' % mobile, Constants.MOBILE_REQUEST_EXPIRE_REDIS, 1)
+        pl.execute()
+
+        # 利用第三方容联云发短信 ,比较花费时间，造成后边返回前台的阻塞
+        # CCP().send_template_sms('15029014304', [sms_code, Constans.SMS_CODE_EXPIRE_REDIS//60], 1)
+
+        # 利用celery
+        sms_code_send.delay(mobile, sms_code)
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+
+
+class FindPasswordCheckMsg(View):
+    """校验手机"""
+    def get(self, request, username):
+        # 获取参数
+        sms_code = request.GET.get('sms_code')
+        if not sms_code:
+            return http.JsonResponse({'code': RETCODE.PARAMERR, 'errmsg': '参数不全'})
+
+        # 两种登录可能
+        try:
+            if re.match(r'^1[3-9]\d{9}$', username):
+                user = User.objects.get(telephone=username,)
+            else:
+                user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return http.JsonResponse({'code': RETCODE.PARAMERR, 'errmsg': '用户名或手机号有误'})
+
+        # 手机验证码校验
+        redis_conn = get_redis_connection('verifications')
+        redis_sms_code = redis_conn.get('sms_code_%s' % user.telephone)
+        # 保证每个手机验证码只能使用一次
+        # 且前端无防护此项
+        redis_conn.delete(redis_sms_code)
+        if redis_sms_code is None:
+            return http.HttpResponseForbidden('验证码已过期')  # 正常逻辑是json局部刷新,但此为form请求,暂时用
+        if redis_sms_code.decode() != sms_code:
+            return http.HttpResponseForbidden('手机验证码不正确')  # 前端给的是form表单请求,不能返回json
+
+        access_token = generate_access_token(user)   # 两次access_token一样， 可以修改
+        user_id = user.id
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'access_token':access_token, 'user_id': user_id})
+
+
+class InstandPassword(View):
+    """重置密码"""
+    def post(self, request, user_id):
+        # 获取参数
+        json_dict = json.loads(request.body.decode())
+        password = json_dict.get('password')
+        password2 = json_dict.get('password2')
+        access_token = json_dict.get('access_token')
+
+        # 校验参数
+        if not all([password, password2, access_token]):
+            return http.HttpResponseForbidden('参数不全')
+
+        if not re.match(r'^[[0-9A-Za-z]{8,20}$', password):
+            return http.HttpResponseForbidden('非法注册,密码不符合规范')
+        if  password != password2:
+            return http.HttpResponseForbidden('非法注册,密码两次输入不一致')
+
+        # 补上access_token校验
+        user = check_access_token(access_token)
+        if user is None:
+            return http.HttpResponseForbidden('token无效')
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return http.HttpResponseForbidden('用户不存在')
+        user.set_password(password)
+        user.save()
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+
+
 
 

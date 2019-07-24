@@ -34,5 +34,16 @@ urlpatterns = [
     url(r'^addresses/(?P<address_id>\d+)/title/$', views.AddressChangeTitleView.as_view()),
     # 修改密码
     url(r'^password/$', views.ChangePasswordView.as_view()),
+    # 找回密码
+    url(r'^find_password/$', views.FindPassword.as_view()),
+    # 找回密码第一次请求密码
+    url(r'^accounts/(?P<username>[a-zA-Z0-9_-]{5,20})/sms/token/$', views.FindPasswordUniqueMake.as_view()),
+    #     第二次请求前的获取短信 sms_codes/
+    url(r'^sms_codes/$', views.FindPasswordSmsCode.as_view()),
+    # 找回密码第二次请求密码
+    url(r'^accounts/(?P<username>[a-zA-Z0-9_-]{5,20})/password/token/$', views.FindPasswordCheckMsg.as_view()),
+    # 找回密码第三次请求密码
+    url(r'^users/(?P<user_id>\d+)/password/$', views.InstandPassword.as_view()),
 
+    # this.host + '/users/'+ this.user_id +'/password/'
 ]

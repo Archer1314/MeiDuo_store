@@ -24,7 +24,6 @@ class SmsCode(View):
 
     def get(self, request, mobile):
         # (3)、优化电话请求短信2
-        print(1)
         redis_conn = get_redis_connection('verifications')
         count = redis_conn.get('sending_flag_%s' % mobile)
         if count:
@@ -68,10 +67,8 @@ class SmsCode(View):
         # CCP().send_template_sms('15029014304', [sms_code, Constans.SMS_CODE_EXPIRE_REDIS//60], 1)
 
         # 利用celery
-        a = sms_code_send.delay(mobile, sms_code)
-        print(a)
+        sms_code_send.delay(mobile, sms_code)
         return http.JsonResponse({'code': RETCODE.OK, 'ess_sms': 'ok'})
-
 
 
 

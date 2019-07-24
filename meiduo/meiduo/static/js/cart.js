@@ -102,7 +102,7 @@ var vm = new Vue({
             }
             this.update_count(index, count); // 请求服务器
         },
-        // 更新购物车
+        // 更新购物车   减少 /增加 / 数量输入框输入 前端计算得到该商品最新的数量，然后发送了个put请求
         update_count(index, count){
             var url = this.host + '/carts/';
             axios.put(url, {
@@ -117,8 +117,10 @@ var vm = new Vue({
                 withCredentials: true
             })
                 .then(response => {
+                    //如果响应结果是成功
                     if (response.data.code == '0') {
                         // this.carts[index].count = response.data.cart_sku.count; // 无法触发页面更新
+                        //知道我们要传回的参数名
                         Vue.set(this.carts, index, response.data.cart_sku); // 触发页面更新
                         if (response.data.cart_sku.selected == true) {
                             this.carts[index].selected = true;

@@ -28,30 +28,74 @@ class ManyUser(ModelBackend):
 
 
 def generate_verify_url(user):
+    """生成用户激活邮箱url"""
     # 新建加密对象
     serializer = Serializer(settings.SECRET_KEY, 3600 * 24)
     # 准备加密数据
     data = {'user_id': user.id, 'email': user.email}
-    base_url = 'http://www.meiduo.site:8000/emails/verifications/'
-    # 加密
-    data_bytes = serializer.dumps(data)
-    # 拼接url
-    url = base_url + '?token=' + data_bytes.decode()
-    # 返回
-    return url
+    # 加密,字节流转字符串
+    token = serializer.dumps(data).decode()
+    # 拼接激活url   'http://www.meiduo.site:8000/emails/verification/' + '?token=' + 'xxxxdfsajadsfljdlskaj'
+    verify_url = settings.EMAIL_VERIFY_URL + '?token=' + token
+    print(verify_url)
+    return verify_url
+
 
 
 def check_verify_url(token):
-    # 新建加密对象
+    """传入token解密后查询用户"""
     serializer = Serializer(settings.SECRET_KEY, 3600 * 24)
-    print(12)
+    print(token)
     try:
         data = serializer.loads(token)
         user_id = data.get('user_id')
         email = data.get('email')
-        print(user_id, email)
         try:
             user = User.objects.get(id=user_id, email=email)
+            return user
+        except User.DoesNotExist:
+            return None
+    except BadData:
+        return None
+    # # 新建加密对象
+    # serializer = Serializer(settings.SECRET_KEY, 3600 * 24)
+    # print(12)
+    # try:
+    #     data = serializer.loads(token)
+    #     user_id = data.get('user_id')
+    #     email = data.get('email')
+    #     print(user_id, email)
+    #     try:
+    #         user = User.objects.get(id=user_id, email=email)
+    #         return user
+    #     except User.DoesNotExist:
+    #         return None
+    # except BadData:
+    #     return None
+
+
+def generate_access_token(user):
+    # 新建加密对象
+    serializer = Serializer(settings.SECRET_KEY, 3600 * 24)
+    # 准备加密数据
+    data = {'id': user.id, 'token': user.telephone}
+    # 加密,得到字节流字符串
+    data_bytes = serializer.dumps(data)
+    # 返回字符串
+    access_token = data_bytes.decode()
+    # 返回
+    return access_token
+
+
+def check_access_token(access_token):
+    # 新建加密对象
+    serializer = Serializer(settings.SECRET_KEY, 3600 * 24)
+    try:
+        data = serializer.loads(access_token)
+        mobile = data.get('token')
+        id = data.get('id')
+        try:
+            user = User.objects.get(id=id, telephone=mobile)
             return user
         except User.DoesNotExist:
             return None

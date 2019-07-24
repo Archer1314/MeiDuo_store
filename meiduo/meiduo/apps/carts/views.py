@@ -144,11 +144,11 @@ class CartsView(View):
     def put(self,request):
         """购物车修改(一次对一个商品进行修改)"""
         # 1.接收
+
         json_dict = json.loads(request.body.decode())
         sku_id = json_dict.get('sku_id')
         count = json_dict.get('count')
         selected = json_dict.get('selected', True)
-
 
         # 校验
         if not all([sku_id, count]):
@@ -201,7 +201,6 @@ class CartsView(View):
                 return render(request, 'cart.html')
             # 把cookie的购物车字典转换成字符串
             cart_str = base64.b64encode(pickle.dumps(cart_dict)).decode()
-            sku = SKU.objects.get(id=sku_id)
             sku_dict = {
                 'id': sku.id,
                 'name': sku.name,
@@ -245,6 +244,7 @@ class CartsView(View):
                 del cart_dict[sku_id]
             response = http.JsonResponse({'code': RETCODE.OK, 'errmsg': '删除成功'})
 
+            # 删除了该商品后， 购物车为空
             if not cart_dict:
                 response.delete_cookie('carts')
                 return response
@@ -255,7 +255,7 @@ class CartsView(View):
 
 
 class CartsSelectAllView(View):
-    def put(self,request):
+    def put(self, request):
         """购物车界面的全选和全不选"""
         # 获取前段传来的数据
         selected = json.loads(request.body.decode()).get('selected')
