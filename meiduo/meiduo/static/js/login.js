@@ -1,3 +1,4 @@
+
 var vm = new Vue({
     el: '#app',
 	// 修改Vue变量的读取语法，避免和django模板语法冲突
@@ -55,7 +56,6 @@ var vm = new Vue({
                     console.log(error.response);
                 })
         },
-
          // 微博登录
         weibo_login: function(){
             var next = get_query_string('next') || '/';

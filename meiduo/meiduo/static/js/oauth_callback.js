@@ -13,6 +13,8 @@ var vm = new Vue({
 		error_image_code_message: '请填写图形验证码',
 		error_sms_code_message: '请填写短信验证码',
 
+        access_token: '',
+
 		uuid: '', // 图片验证码id
 		image_code_url: '',
 

@@ -17,6 +17,7 @@ var vm = new Vue({
             service: false
         },
         comments: [],
+        comments_count :'',
         score_classes: {
             1: 'stars_1',
             2: 'stars_2',
@@ -199,6 +200,7 @@ var vm = new Vue({
                     })
                     .then(response => {
                         this.comments = response.data.comment_list;
+                        this.comments_count = response.data.comment_count;
                         for(var i=0; i<this.comments.length; i++){
                             this.comments[i].score_class = this.score_classes[this.comments[i].score];
                         }

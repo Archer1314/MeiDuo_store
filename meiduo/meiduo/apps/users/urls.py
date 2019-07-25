@@ -44,6 +44,11 @@ urlpatterns = [
     url(r'^accounts/(?P<username>[a-zA-Z0-9_-]{5,20})/password/token/$', views.FindPasswordCheckMsg.as_view()),
     # 找回密码第三次请求密码
     url(r'^users/(?P<user_id>\d+)/password/$', views.InstandPassword.as_view()),
+    # 查看订单
+    # orders/info/1/
+    url(r'^orders/info/(?P<page_num>\d+)/$', views.OrderList.as_view()),
+    # 评价订单
+    # orders/comment/
+    url(r'^orders/comment/$', views.OrderComment.as_view()),
 
-    # this.host + '/users/'+ this.user_id +'/password/'
 ]

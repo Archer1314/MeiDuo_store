@@ -12,6 +12,7 @@ from meiduo.utils.response_code import RETCODE
 from .models import GoodsVisitCount
 from meiduo.utils.views import LoginRequiredView
 from django_redis import get_redis_connection
+from orders.models import OrderGoods
 # Create your views here.
 
 
@@ -143,7 +144,6 @@ class DetailGoodView(View):
         #     'sku': sku
         # }
         return render(request, 'detail.html', context)
-        pass
 
 
 class DetailVisitCount(View):
@@ -218,6 +218,22 @@ class BrowseHistoriesView(View):
             skus.append(sku_dict)
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'skus': skus})
 
+
+class DetailGoodCommentView(View):
+    def get(self,request, sku_id):
+        order_goods_set = OrderGoods.objects.filter(sku_id=sku_id, is_commented=True).order_by('-create_time')
+        if order_goods_set is None:
+            return http.HttpResponseForbidden('参数有误')
+        comment_list = []
+        for order_good in order_goods_set:
+            comment_list.append({
+                'username': order_good.order.user.username,
+                'comment': order_good.comment,
+                'score': order_good.score,
+
+            })
+        comment_count = order_goods_set.count()
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'comment_list': comment_list, 'comments_count': comment_count})
 
 
 

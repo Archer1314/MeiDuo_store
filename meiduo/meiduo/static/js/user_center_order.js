@@ -4,12 +4,14 @@ var vm = new Vue({
     delimiters: ['[[', ']]'],
     data: {
         host: host,
+        sku_id:'',
+        detail_url:this.host + 'detail/' + this.sku_id + '/'
     },
     mounted(){
 
     },
     methods: {
-        oper_btn_click(order_id, status){
+        oper_btn_click(order_id, status) {
             if (status == '1') {
                 // 待支付
                 var url = this.host + '/payment/' + order_id + '/';

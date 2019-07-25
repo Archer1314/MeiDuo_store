@@ -18,4 +18,8 @@ urlpatterns = [
     # 保存浏览记录
     # url = this.host + '/browse_histories/';
     url(r'^browse_histories/$', views.BrowseHistoriesView.as_view()),
+    # 获取评价详情
+    # /comments/'+ this.sku_id +'/'
+    url(r'^comments/(?P<sku_id>\d+)/$', views.DetailGoodCommentView.as_view()),
+
 ]

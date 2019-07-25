@@ -1,6 +1,7 @@
 import json
 from django.contrib.auth import login
 from django.contrib.auth import logout
+from django.core.paginator import Paginator, EmptyPage
 from django.db import DatabaseError
 from django.shortcuts import render, redirect
 from django import http
@@ -22,6 +23,9 @@ from django.db.models import Q
 import random
 from .constants import Constants
 from celery_tasks.sms.tasks import sms_code_send
+from orders.models import OrderInfo, OrderGoods
+from goods.models import SKU
+from django.db import transaction
 
 
 class RegisterView(View):
@@ -557,7 +561,7 @@ class FindPasswordUniqueMake(View):
         # 响应
         # 生成access_token,带有用户唯一信息
         access_token = generate_access_token(user)
-        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'access_token':access_token, 'mobile': user.telephone})
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'access_token': access_token, 'mobile': user.telephone})
 
 
 class FindPasswordSmsCode(View):
@@ -664,5 +668,118 @@ class InstandPassword(View):
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
 
 
+class OrderList(LoginRequiredView):
+    def get(self, request, page_num):
+        user = request.user
+        order_query_set = user.orderinfo_set.all().order_by('-create_time')
+        # 创建分页器：每页N条记录
+        paginator = Paginator(order_query_set, Constants.GOODS_LIST_LIMIT)
+        # 获取每页商品数据
+        try:
+            page_orders = paginator.page(page_num)
+        except EmptyPage:
+            # 如果page_num不正确，默认给用户404
+            return http.HttpResponseNotFound('empty page')
+        # 获取列表页总页数
+        total_page = paginator.num_pages
+
+        page_orders = []
+        for order in order_query_set:
+            # 添加订单进来
+            pay_method_name = ('支付宝' if order.pay_method == 2 else '货到付款')
+            status_name = OrderInfo.ORDER_STATUS_CHOICES[order.status-1][1]
+            sku_list = []
+            order_sku_list = order.skus.all()
+            for order_sku in order_sku_list:
+                sku_list.append({
+                    'sku_id': order_sku.sku.id,
+                    'default_image': order_sku.sku.default_image,
+                    'name': order_sku.sku.name,
+                    'price': order_sku.sku.price,
+                    'count': order_sku.count,
+                    'amount': (order_sku.sku.price * order_sku.count)
+                })
+            page_orders.append({
+                'create_time': order.create_time,
+                'order_id': order.order_id,
+                'total_amount': order.total_amount,
+                'freight': order.freight,
+                'pay_method_name': pay_method_name,
+                'status': order.status,
+                'status_name': status_name,
+                'sku_list': sku_list
+            })
+        context = {
+            'page_orders': page_orders,  # 分页后数据
+            'total_page': total_page,  # 总页数
+            'page_num': page_num,  # 当前页码
+        }
+        return render(request, 'user_center_order.html', context)
+
+
+
+class OrderComment(LoginRequiredView):
+    def get(self, request):
+        order_id = request.GET.get('order_id')
+        try:
+            order = OrderInfo.objects.get(order_id=order_id)
+        except OrderInfo.DoesNotExist:
+            return http.HttpResponseForbidden('非法请求')
+        order_sku_list = order.skus.all().order_by()
+        sku_list = []
+        for order_sku in order_sku_list:
+            sku_list.append({
+                'order_id': order_id,
+                'sku_id': order_sku.sku_id,
+                'default_image_url': order_sku.sku.default_image.url,
+                'name': order_sku.sku.name,
+                'price': str(order_sku.sku.price),
+                'comment': order_sku.comment,
+                'score': order_sku.count,
+                'amount': str(order_sku.sku.price * order_sku.count)
+            })
+
+        return render(request, 'goods_judge.html', {'uncomment_goods_list': sku_list})
+
+    def post(self,request):
+        """保存评价"""
+        json_dict = json.loads(request.body.decode())
+        sku_id = json_dict.get('sku_id')
+        order_id = json_dict.get('order_id')
+        comment = json_dict.get('comment')
+        score = json_dict.get('score')
+        is_anonymous = json_dict.get('is_anonymous')
+        # 校验参数
+        if not all([sku_id, order_id, comment, score]):
+            return http.HttpResponseForbidden('参数不全')
+        try:
+            order = OrderInfo.objects.get(order_id=order_id)
+            order_sku = OrderGoods.objects.get(order_id=order_id, sku_id=sku_id)
+        except DatabaseError:
+            return http.HttpResponseForbidden('非法请求')
+        if not isinstance(is_anonymous, bool):
+            return http.HttpResponseForbidden('非法请求')
+        if len(comment) < 5:
+            return http.HttpResponseForbidden('非法请求')
+        if score > 5 or score < 0:
+            return http.HttpResponseForbidden('非法请求')
+        with transaction.atomic():
+            save_point = transaction.savepoint()
+            try:
+                order_sku.comment = comment
+                order_sku.score = score
+                order_sku.is_anonymous = is_anonymous
+                order_sku.is_commented = True
+                order_sku.save()
+                sku = order_sku.sku
+                comments = sku.comments
+                sku.comments = comments + 1
+                sku.save()
+                order.status = 5
+                order.save()
+            except Exception:
+                transaction.savepoint_rollback(save_point)
+            transaction.savepoint_commit(save_point)
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
 
 
