@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os
 import sys
-
+import datetime
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
@@ -27,7 +27,10 @@ SECRET_KEY = 'ujq_3r%lyywr9vdr)#(qp@*hz&v6mt*7w_92+^zln61tatxl&_'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['www.meiduo.site']
+ALLOWED_HOSTS = [
+    '*',
+    'www.meiduo.site',
+    '127.0.0.1']
 
 
 # Application definition
@@ -43,6 +46,9 @@ INSTALLED_APPS = [
     # 导入的应用
     'haystack',   # 全文检索
     'django_crontab',  # 定时调度任务
+    'rest_framework',
+    'corsheaders',
+
 
     # 自定义的应用， 如果有迁移建表必须要登记
     'users.apps.UsersConfig',
@@ -54,14 +60,16 @@ INSTALLED_APPS = [
     'orders.apps.OrdersConfig',
     'payment.apps.PaymentConfig',
 ]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'meiduo.urls'
@@ -115,15 +123,28 @@ WSGI_APPLICATION = 'meiduo.wsgi.application'
 # }
 
 DATABASES = {
-    'default': {
+    'default': {  # 写， 主机
         'ENGINE': 'django.db.backends.mysql',
         'HOST': '127.0.0.1',
         'PORT': 3306,
         'USER': 'meiduo',
         'PASSWORD': '123456',
         'NAME': 'meiduo',
-    }
+    },
+    'slave': {  # 读（从机）
+        'ENGINE': 'django.db.backends.mysql',
+        'HOST': '127.0.0.1',
+        'PORT': 8306,
+        'USER': 'root',   #　从服务器的用户名
+        'PASSWORD': 'mysql',
+        'NAME': 'meiduo'
+    },
 }
+
+# 指定读写分离的配置
+DATABASE_ROUTERS = ['meiduo.utils.db_router.MasterSlaveDBRouter']
+
+
 CACHES = {
     "default": { # 默认
         "BACKEND": "django_redis.cache.RedisCache",
@@ -202,7 +223,8 @@ USE_L10N = True
 
 # USE_TZ = True 默认是True， 使用世界时区
 
-USE_TZ = False  # 修改为False， 使用定义的TIME_ZONE
+# USE_TZ = False  # 修改为False， 使用定义的TIME_ZONE
+USE_TZ = True  # 修改为False， 使用定义的TIME_ZONE
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
@@ -333,3 +355,30 @@ CRONJOBS = [
 ]
 
 CRONTAB_COMMAND_PREFIX = 'LANG_ALL=zh_cn.UTF-8'
+
+
+# 收集项目的所有静态文件
+STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
+
+
+# CORS
+CORS_ORIGIN_WHITELIST = (
+    '127.0.0.1:8080',
+    'localhost:8080',
+    'www.meiduo.site:8080',
+    'api.meiduo.site:8000'
+)
+CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+}
+
+JWT_AUTH = {
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1),
+    'JWT_RESPONSE_PAYLOAD_HANDLER': 'meiduo_admin.utils.jwt_response.jwt_response_payload_handler',
+}

@@ -109,6 +109,8 @@ class LoginView(View):
         # input 标签表单的name属性就是这个标签的key， value属性是值
         query_dict = request.POST
         username = query_dict.get('username')
+
+        # 加上密码登录次数校验
         password = query_dict.get('password')
         remembered = query_dict.get('remembered')
 

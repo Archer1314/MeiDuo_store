@@ -20,7 +20,9 @@ import haystack
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^search/', include('haystack.urls')),
-
+    url(r'^api-auth/', include('rest_framework.urls')),
+    # 后台管理站点
+    url(r'^meiduo_admin/', include('meiduo_admin.urls', namespace='meiduo_admin')),
     # 用户应用
     url(r'^', include('users.urls', namespace='users')),
     # 图形验证码、短信验证码应用
@@ -40,4 +42,5 @@ urlpatterns = [
     url(r'^', include('orders.urls', namespace='orders')),
     # 支付应用
     url(r'^', include('payment.urls', namespace='payment')),
+
 ]

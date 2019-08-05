@@ -234,8 +234,7 @@ class CartsView(View):
             pl.execute()
             return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '删除成功'})
         else:
-            json_dict = json.loads(request.body.decode())
-            cart_str = json_dict.get('sku_id')
+            cart_str = request.COOKIES.get('carts')
             if cart_str:
                 cart_dict = pickle.loads(base64.b64decode(cart_str.decode()))
             else:

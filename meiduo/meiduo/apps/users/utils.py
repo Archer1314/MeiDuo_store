@@ -22,6 +22,15 @@ class ManyUser(ModelBackend):
     # 根据现有内容、username password
     @staticmethod
     def authenticate(request, username=None, password=None, **kwargs):
+        if request is None:
+            """vue组件的请求：后台站点管理登录"""
+            try:
+                user = User.objects.get(username=username, is_staff=True)
+                # 判断密码
+                return user if user.check_password(password) else None
+            except:
+                return None
+        # 正常美多商城用户登录
         user = get_use(username)
         if user and user.check_password(password):
             return user
