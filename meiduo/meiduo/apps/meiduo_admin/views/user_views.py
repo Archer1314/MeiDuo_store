@@ -80,6 +80,7 @@ class UserManageView(ListAPIView, CreateAPIView):
             return self.queryset.filter(username__contains=keyword)
         return self.queryset.all()
 
+
 # class SuperUserCreateView(CreateAPIView):
 #     queryset = User.objects.filter(is_staff=True)
 #     serializer_class = UserDetailSerializers
