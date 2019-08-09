@@ -13,6 +13,14 @@ class PermissionViewSet(ModelViewSet):
         request.data['content_type_id'] = request.data.get('content_type')
         return super().create(request, *args, **kwargs)
 
+    def update(self, request, *args, **kwargs):
+        """修改： 问题在于只能修改一个分类"""
+        # TODO 增加名称的修改, 改进成id的
+        codename = request.data.get('codename')
+        content_type_id = Permission.objects.get('codename').id
+        request.data['content_type_id'] = request.data.get('content_type')
+        return super().update(request, *args, **kwargs)
+
 
 class PermissionListView(ListAPIView):
     queryset = ContentType.objects.all()

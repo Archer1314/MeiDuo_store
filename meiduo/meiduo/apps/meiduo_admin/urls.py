@@ -12,6 +12,8 @@ from .views.chanel_views import *
 from .views.brand_views import *
 from .views.order_views import *
 from .views.permission_views import *
+from .views.group_permission_views import *
+from .views.admins_views import *
 
 
 
@@ -67,6 +69,11 @@ urlpatterns = [
     # 获取权限类型列表
     # permission/content_types/
     url(r'^permission/content_types/$', PermissionListView.as_view()),
+    # 权限列表
+    # permission/simple/
+    url(r'^permission/simple/$', PermissionSimpleView.as_view()),
+
+    url(r'^permission/groups/simple/$', GroupSimpleView.as_view()),
 
 ]
 
@@ -85,6 +92,10 @@ router.register(prefix='goods', viewset=SPUViewSet, base_name='goods')
 router.register(prefix='orders', viewset=OrderViewSet, base_name='orders')
 # 权限管理
 router.register(prefix='permission/perms', viewset=PermissionViewSet, base_name='permission')
+# 组权限管理
+router.register(prefix='permission/groups', viewset=GroupPermissionViewSet, base_name='groups')
+# 管理员
+router.register(prefix='permission/admins', viewset=AdminUserViewSet, base_name='admins')
 
 urlpatterns += router.urls
 

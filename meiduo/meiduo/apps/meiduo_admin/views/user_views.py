@@ -73,12 +73,33 @@ class UserManageView(ListAPIView, CreateAPIView):
     queryset = User.objects.filter(is_staff=True)
     serializer_class = UserDetailSerializers
 
-
     def get_queryset(self):
         keyword = self.request.query_params.get('keyword')
         if keyword:
             return self.queryset.filter(username__contains=keyword)
         return self.queryset.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            admin_user_list = serializer.data
+            for one_user_dict in admin_user_list:
+                one_user_dict['mobile'] = one_user_dict.pop('telephone')
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        admin_user_list = serializer.data
+        for one_user_dict in admin_user_list:
+            one_user_dict['mobile'] = one_user_dict.pop('telephone')
+        return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        request.data['telephone'] = request.data.pop('mobile')
+        return super().create(request, *args, **kwargs)
+
 
 
 # class SuperUserCreateView(CreateAPIView):

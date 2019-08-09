@@ -370,15 +370,24 @@ CORS_ORIGIN_WHITELIST = (
 )
 CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
 
+# from rest_framework_jwt.authentication import
+# from rest_framework.authentication import
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        # 默认是从上到下， 一个通过就通过
+        # 全部不通过才会报错
         'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ),
 }
-
+# from rest_framework_jwt.settings import
 JWT_AUTH = {
+    # 'JWT_VERIFY_EXPIRATION': False,  # 是否进行JWT校验
+    # 'JWT_AUTH_HEADER_PREFIX': 'Authorization',  # 签发的token的 request头的名字
     'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1),
     'JWT_RESPONSE_PAYLOAD_HANDLER': 'meiduo_admin.utils.jwt_response.jwt_response_payload_handler',
 }
+
+# Fastfds 的配置文件路径
+FASTFDS_CONF_PATH = os.path.join(BASE_DIR, 'utils/fastfds/client.conf')

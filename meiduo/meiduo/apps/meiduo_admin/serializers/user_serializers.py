@@ -7,7 +7,7 @@ class UserDetailSerializers(serializers.ModelSerializer):
     # mobile = serializers.CharField(write_only=True, max_length=20)
     class Meta:
         model = User
-        fields = ['id', 'username', 'telephone', 'email', 'password', ]
+        fields = ['id', 'username', 'telephone', 'email', 'password']
         extra_kwargs = {
             'username': {
                 'max_length': 20,
@@ -18,7 +18,6 @@ class UserDetailSerializers(serializers.ModelSerializer):
                 'min_length': 8,
                 'write_only': True
             },
-            'telephone': {'read_only': True}
         }
 
     def create(self, validated_data):
