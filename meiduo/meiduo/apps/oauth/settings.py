@@ -1,7 +1,14 @@
-class OAuthQQBasic:
-    client_id = '101518219'
-    client_secret = '418d84ebdc7241efb79536886ae95224'
-    redirect_uri = 'http://www.meiduo.site:8000/oauth_callback'
+# class OAuthQQBasic:  # 开发阶段
+#     client_id = '101518219'
+#     client_secret = '418d84ebdc7241efb79536886ae95224'
+#     redirect_uri = 'http://www.meiduo.site:8000/oauth_callback'
+
+
+class OAuthQQBasic:   # 生产阶段
+    client_id = '101531904'
+    client_secret = '6afc7211294442e13439b5b4b7ae9118'
+    redirect_uri = 'http://www.meiduo.site:80/oauth_callback'
+
 
 class OAuthWerBoBasic:
     # App_Key = '1830504781'

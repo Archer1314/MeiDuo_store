@@ -11,6 +11,8 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "meiduo.settings")
+# os.environ.setdefault("DJANGO_SETTINGS_MODULE", "meiduo.settings")
+# 生产阶段
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "meiduo.settings.pro")
 
 application = get_wsgi_application()

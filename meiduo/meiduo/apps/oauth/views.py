@@ -18,6 +18,7 @@ from .utils import check_openid_singnature, generate_openid_encrypt
 from django_redis import get_redis_connection
 from .sinaweibopy3 import APIClient
 from celery_tasks.sms.tasks import sms_code_send
+
 # Create your views here.
 # 获取终端的显示日志
 logger = logging.getLogger('django')
