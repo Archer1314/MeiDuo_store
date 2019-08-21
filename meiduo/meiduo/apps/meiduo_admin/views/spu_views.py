@@ -33,3 +33,4 @@ class CategoryView(ListAPIView):
         if parent_id:
             return self.queryset.filter(parent_id=parent_id)
         return self.queryset.filter(parent=None)
+

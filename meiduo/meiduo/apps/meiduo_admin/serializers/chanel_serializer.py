@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from goods.models import GoodsChannel, GoodsChannelGroup
+from goods.models import GoodsChannel, GoodsChannelGroup, GoodsCategory
 
 
 class GoodsChanelSerializer(serializers.ModelSerializer):
@@ -17,3 +17,10 @@ class ChannelGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = GoodsChannelGroup
         fields = ['id', 'name']
+
+
+# class SKUCategorySerializer(serializers.ModelSerializer):
+#     """三级分类"""
+#     class Meta:
+#         model = GoodsCategory
+#         fields = ['id', 'name']
